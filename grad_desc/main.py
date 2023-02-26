@@ -1,5 +1,3 @@
-from abc import ABC, abstractmethod
-
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import rosen
@@ -46,7 +44,7 @@ class DichtGradientDescending(GradientDescending):
                 current = middle
             else:
                 next = middle
-        return
+        return current
 
 
 def f(x):
