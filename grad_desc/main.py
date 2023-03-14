@@ -1,13 +1,14 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import rosen
+from math import cos, sin
 
 
 class GradientDescending():
 
     @staticmethod
     def grad(f, x, h=1e-5):
-        return (f(x[:, np.newaxis] + h * np.eye(2)) - f(x[:, np.newaxis] - h * np.eye(2))) / (2 * h)
+        return (f(x[:, np.newaxis] + h * np.eye(x.size)) - f(x[:, np.newaxis] - h * np.eye(x.size))) / (2 * h)
 
     @staticmethod
     def directed_derivative(f, x, direction, h=1e-5):
@@ -17,17 +18,18 @@ class GradientDescending():
     def one_dimension_method(self, func, x, direction, alpha, eps, max_iterations):
         return x + direction * alpha
 
-    def find_min(self, func, initial, alpha=0.5, eps=0.001, max_iterations=1000):
+    def find_min(self, func, initial, alpha=0.5, eps=0.001, max_iterations=0):
+        points = np.zeros((0, initial.size))
         coords = initial
         for i in range(max_iterations):
-            print(coords)
+            points = np.append(points, coords)
             direction = -self.grad(func, coords)
             next_coords = self.one_dimension_method(func, coords, direction, alpha, eps, max_iterations)
             delta = next_coords - coords
             if np.sqrt(delta.dot(delta)) < eps:
-                return next_coords
+                return points
             coords = next_coords
-        return coords
+        return points
 
 
 class DichtGradientDescending(GradientDescending):
@@ -39,7 +41,7 @@ class DichtGradientDescending(GradientDescending):
             if np.linalg.norm(func(current) - func(next)) < eps:
                 return current
             middle = (current + next) / 2
-            derive = self.directed_derivative(f, middle, direction)
+            derive = self.directed_derivative(func, middle, direction)
             if derive < 0:
                 current = middle
             else:
