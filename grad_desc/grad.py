@@ -1,10 +1,8 @@
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.optimize import rosen
-from math import cos, sin
 
 
-class GradientDescending():
+class GradientDescending:
 
     @staticmethod
     def grad(f, x, h=1e-5):
@@ -18,7 +16,7 @@ class GradientDescending():
     def one_dimension_method(self, func, x, direction, alpha, eps, max_iterations):
         return x + direction * alpha
 
-    def find_min(self, func, initial, alpha=0.5, eps=0.001, max_iterations=0):
+    def find_min(self, func, initial, alpha=0.5, eps=0.001, max_iterations=100):
         points = np.zeros((0, initial.size))
         coords = initial
         for i in range(max_iterations):
@@ -27,16 +25,16 @@ class GradientDescending():
             next_coords = self.one_dimension_method(func, coords, direction, alpha, eps, max_iterations)
             delta = next_coords - coords
             if np.sqrt(delta.dot(delta)) < eps:
-                return points
+                return points, True
             coords = next_coords
-        return points
+        return points, False
 
 
 class DichtGradientDescending(GradientDescending):
 
     def one_dimension_method(self, func, x, direction, alpha, eps, max_iterations):
         current = x
-        next = x + direction*alpha
+        next = x + direction * alpha
         for i in range(max_iterations):
             if np.linalg.norm(func(current) - func(next)) < eps:
                 return current
@@ -50,7 +48,7 @@ class DichtGradientDescending(GradientDescending):
 
 
 def f(x):
-    return np.sin(0.5 * x[0]**2 - 0.25 * x[1]**2 + 3)*np.cos(2*x[0]+1-np.exp(x[1]))
+    return np.sin(0.5 * x[0] ** 2 - 0.25 * x[1] ** 2 + 3) * np.cos(2 * x[0] + 1 - np.exp(x[1]))
 
 
 if __name__ == "__main__":
