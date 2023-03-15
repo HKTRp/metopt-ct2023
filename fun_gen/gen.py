@@ -41,7 +41,7 @@ with open("output.txt", "w") as output:
     for n in range(2, 1001):
         for k in range(1, 1001):
             F = QuadraticFunctionGenerator().generate(n, k)
-            points, isValid = grad.GradientDescending().find_min(
+            points, isValid = grad.DichtGradientDescending().find_min(
                 F, initial=np.array([np.random.uniform(-10, 10) for _ in range(n)],))
             if isValid:
                 output.write(f'{n} {k} {points.size // n}\n')
