@@ -1,10 +1,8 @@
 import datetime
 import random
-from abc import ABC, abstractmethod
 
-import numpy
+import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import pyplot as plt
 
 
 def get_eps(dim):
@@ -13,6 +11,18 @@ def get_eps(dim):
 
 def quadratic_grad(x, w, y, n):
     return ((x.dot(w) - y).dot(x)) / n
+
+
+def quadratic_grad_l1(x, w, y, n):
+    return ((x.dot(w) - y).dot(x)) / n + np.sum(w / np.abs(w))
+
+
+def quadratic_grad_l2(x, w, y, n):
+    return ((x.dot(w) - y).dot(x)) / n + np.sum(w)
+
+
+def quadratic_grad_elastic(x, w, y, n, lambd1=0.5, lambd2=0.9):
+    return ((x.dot(w) - y).dot(x)) / n + lambd2*np.sum(w) + lambd1*np.sum(w / np.abs(w))
 
 
 class StochasticGradDescCommon:
@@ -86,8 +96,8 @@ class AdaGradStochasticDesc(StochasticGradDescCommon):
 
     def update(self, batch_x, batch_y):
         grad = quadratic_grad(batch_x, self.current, batch_y, self.dimensions)
-        self.g += numpy.outer(grad, grad)
-        diag = numpy.sqrt(self.g.diagonal())
+        self.g += np.outer(grad, grad)
+        diag = np.sqrt(self.g.diagonal())
         self.current -= self.learning_rate * grad / (diag + get_eps(self.dimensions))
 
 
@@ -114,13 +124,31 @@ class AdamStochasticDesc(StochasticGradDescCommon):
         self.v = np.zeros(self.dimensions)
         self.s = np.zeros(self.dimensions)
 
+    def get_grad(self, batch_x, batch_y):
+        return quadratic_grad(batch_x, self.current, batch_y, self.dimensions)
+
     def update(self, batch_x, batch_y):
         grad = quadratic_grad(batch_x, self.current, batch_y, self.dimensions)
-        self.v = self.beta_one*self.v + (1-self.beta_one)*grad
-        self.s = self.beta_two*self.s + (1-self.beta_two)*grad*grad
-        v_inv = self.v/(1-self.beta_one**self.iteration)
-        s_inv = self.s/(1-self.beta_two**self.iteration)
-        self.current -= self.learning_rate*v_inv/np.sqrt(s_inv + get_eps(self.dimensions))
+        self.v = self.beta_one * self.v + (1 - self.beta_one) * grad
+        self.s = self.beta_two * self.s + (1 - self.beta_two) * grad * grad
+        v_inv = self.v / (1 - self.beta_one ** self.iteration + get_eps(self.dimensions))
+        s_inv = self.s / (1 - self.beta_two ** self.iteration + get_eps(self.dimensions))
+        self.current -= self.learning_rate * v_inv / np.sqrt(s_inv + get_eps(self.dimensions))
+
+
+class AdamWithL1(AdamStochasticDesc):
+    def get_grad(self, batch_x, batch_y):
+        return quadratic_grad_l1(batch_x, self.current, batch_y, self.dimensions)
+
+
+class AdamWithL2(AdamStochasticDesc):
+    def get_grad(self, batch_x, batch_y):
+        return quadratic_grad_l2(batch_x, self.current, batch_y, self.dimensions)
+
+
+class AdamWithElasticNet(AdamStochasticDesc):
+    def get_grad(self, batch_x, batch_y):
+        return quadratic_grad_elastic(batch_x, self.current, batch_y, self.dimensions)
 
 
 def const_lr(learning_rate, iter_num):
@@ -172,6 +200,26 @@ def test(grad_desc, lr_scheduler, x, y):
         print(f'iterations: {len(result)}, batch_size: {batch_size}, computing_time: {comp_time}s')
 
 
+def polynomial_regression(real_c, points_amount=20):
+    x_points = []
+    y_points = []
+    xses = []
+    dim = real_c.shape[0]
+    for i in range(points_amount):
+        x_value = float((np.random.rand(1) - 0.5) * 4)
+        x_points_value = np.array([np.power(x_value, i) for i in range(dim)])
+        y_value = real_c.dot(x_points_value)
+        x_points.append(x_points_value)
+        y_points.append(y_value)
+        xses.append(x_value)
+    x_points = np.array(x_points)
+    y_points = np.array(y_points)
+    y_points += np.random.normal(0, 0.5, points_amount)
+    result = AdamWithElasticNet().get_min(x_points, y_points, exponential_lr, batch_size=points_amount // 10)
+    print(real_c, result[-1], len(result))
+    return result[-1], (xses, y_points)
+
+
 # constant learning rate
 test(StochasticGradDesc().get_min, const_lr, X, y)
 
@@ -189,3 +237,21 @@ test(RMSStochasticDesc().get_min, exponential_lr, X, y)
 
 # Adam optimisation
 test(AdaGradStochasticDesc().get_min, exponential_lr, X, y)
+
+# Polynomial regression
+print()
+coeffs = np.array([0.5, -0.9, 0.8])
+data = polynomial_regression(coeffs, 100)
+predicted_coeffs = data[0]
+points = data[1]
+
+coeffs = np.flip(coeffs)
+predicted_coeffs = np.flip(predicted_coeffs)
+x = np.linspace(-2, 2, 100)
+y1 = [np.polyval(coeffs, i) for i in x]
+y2 = [np.polyval(predicted_coeffs, i) for i in x]
+plt.plot(x, y1, label='Real polynom')
+plt.plot(x, y2, label='Predicted polynom')
+plt.plot(points[0], points[1], 'go', label='Raw data')
+plt.legend()
+plt.show()
